@@ -8,8 +8,7 @@
 const gameboard = (() => {
   // Methods to update and query the gameboard state
 
-  const gameboard = Array(9).fill(null);
-  // const gameboard = Array(9).fill('hi');
+  let gameboard = Array(9).fill('');
 
   const placeMark = function (index, player) {
     const { mark } = player;
@@ -18,13 +17,21 @@ const gameboard = (() => {
 
   const getBoard = () => gameboard;
 
-  const printBoard = () => console.log(gameboard);
+  const resetBoard = () => {
+    console.log(gameboard);
+    gameboard = gameboard.map(val => '');
+    console.log(gameboard);
+    displayController.renderBoard();
+  };
 
-  return { gameboard, placeMark, getBoard, printBoard };
+  // const printBoard = () => console.log(gameboard);
+
+  return { gameboard, placeMark, getBoard, resetBoard };
 })();
 
 const gameController = (() => {
   // Methods for game logic
+  // const gameMessage = document.querySelector('#subheading');
 
   const WIN_COMBOS = [
     // HORIZONTAL WINS
@@ -50,7 +57,7 @@ const gameController = (() => {
   };
 
   const playerOne = player('chris', 'X');
-  const playerTwo = player('tim', 'Y');
+  const playerTwo = player('omega', 'O');
 
   let activePlayer = playerOne;
 
@@ -60,15 +67,14 @@ const gameController = (() => {
     activePlayer = activePlayer === playerOne ? playerTwo : playerOne;
   };
 
-  const printNewRound = () => {
-    gameboard.printBoard();
-    console.log(`${activePlayer.name}'s turn.`);
-  };
+  // const printNewRound = () => {
+  //   gameboard.printBoard();
+  //   console.log(`${activePlayer.name}'s turn.`);
+  // };
 
   const checkIfWinner = function (player) {
     const { mark } = player;
     const board = gameboard.getBoard();
-    console.log({ board });
     return WIN_COMBOS.some(combo =>
       combo.every(index => {
         return board[index] === mark;
@@ -76,37 +82,66 @@ const gameController = (() => {
     );
   };
 
+  const checkIfTaken = index => gameboard.gameboard[index].length > 0;
+
   const printWinner = function (activePlayer) {
-    console.log(`${activePlayer.name} has won!!!`);
+    displayController.printMessage(`${activePlayer.name} has won!!!`);
   };
 
   const playRound = function (player, index) {
-    const { mark } = player;
-    console.log(`Placing ${activePlayer.name}'s mark into cell ${mark}...`);
-    gameboard.placeMark(index, player);
+    const { name, mark } = player;
+    if (!checkIfTaken(index)) gameboard.placeMark(index, player);
+    displayController.renderBoard();
 
     /*  This is where we would check for a winner and handle that logic,
         such as a win message. */
-    if (checkIfWinner(activePlayer)) printWinner(activePlayer);
+    if (checkIfWinner(activePlayer)) {
+      printWinner(activePlayer);
+      gameboard.resetBoard();
+      // return;
+    }
 
-    // Switch player turn
+    // If no winner, switch player turn
     switchPlayerTurn();
-    printNewRound();
+    displayController.printMessage(
+      `${activePlayer.name}'s, ${activePlayer.mark}, turn...`
+    );
   };
 
-  return { playRound, getActivePlayer };
+  const handleClick = e => {
+    const index = e.target.dataset.index;
+    if (index === undefined) return;
+    e.target.classList.add('marked');
+    playRound(getActivePlayer(), index);
+  };
+
+  return { playRound, getActivePlayer, handleClick };
 })();
 
-gameController.playRound(gameController.getActivePlayer(), 6);
-gameController.playRound(gameController.getActivePlayer(), 5);
-gameController.playRound(gameController.getActivePlayer(), 8);
-gameController.playRound(gameController.getActivePlayer(), 4);
-gameController.playRound(gameController.getActivePlayer(), 7);
+const displayController = (() => {
+  // Methods to render the game state on the UI
+  const board = document.querySelector('#gameboard');
 
-// const displayController = (() => {
-//   // Methods to render the game state on the UI
+  const printMessage = message => {
+    document.querySelector('#subheading').textContent = message;
+  };
 
-//   cells.forEach((cell, i) => {
-//     cell.textContent = gameboard.gameboard[i];
-//   });
-// })();
+  const renderBoard = () =>
+    (board.innerHTML = `
+  ${gameboard
+    .getBoard()
+    .map((val, i) => {
+      return val.length === 0
+        ? `<div class="cell" data-index="${i}">${val}</div>`
+        : `<div class="cell marked" data-index="${i}">${val}</div>`;
+    })
+    .join('')}
+  `);
+
+  return { renderBoard, printMessage };
+})();
+
+displayController.renderBoard();
+document
+  .querySelector('#gameboard')
+  .addEventListener('click', e => gameController.handleClick(e));
