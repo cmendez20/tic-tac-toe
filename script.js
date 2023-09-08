@@ -18,13 +18,8 @@ const gameboard = (() => {
   const getBoard = () => gameboard;
 
   const resetBoard = () => {
-    console.log(gameboard);
     gameboard = gameboard.map(val => '');
-    console.log(gameboard);
-    displayController.renderBoard();
   };
-
-  // const printBoard = () => console.log(gameboard);
 
   return { gameboard, placeMark, getBoard, resetBoard };
 })();
@@ -56,8 +51,8 @@ const gameController = (() => {
     return { name, mark };
   };
 
-  const playerOne = player('chris', 'X');
-  const playerTwo = player('omega', 'O');
+  const playerOne = player('X-ray', 'X');
+  const playerTwo = player('Oscar', 'O');
 
   let activePlayer = playerOne;
 
@@ -67,38 +62,51 @@ const gameController = (() => {
     activePlayer = activePlayer === playerOne ? playerTwo : playerOne;
   };
 
-  // const printNewRound = () => {
-  //   gameboard.printBoard();
-  //   console.log(`${activePlayer.name}'s turn.`);
-  // };
-
   const checkIfWinner = function (player) {
     const { mark } = player;
     const board = gameboard.getBoard();
-    return WIN_COMBOS.some(combo =>
+    const winStatus = WIN_COMBOS.some(combo =>
       combo.every(index => {
         return board[index] === mark;
       })
     );
+    console.log({ winStatus });
+    console.log(board.join('').length > 8);
+
+    if (!winStatus && board.join('').length > 8) {
+      console.log('tie!!!');
+      return 'tie';
+    } else {
+      return winStatus;
+    }
   };
 
-  const checkIfTaken = index => gameboard.gameboard[index].length > 0;
+  const checkIfTaken = index => {
+    const board = gameboard.getBoard();
+    return board[index].length > 0;
+  };
 
   const printWinner = function (activePlayer) {
     displayController.printMessage(`${activePlayer.name} has won!!!`);
   };
 
   const playRound = function (player, index) {
-    const { name, mark } = player;
     if (!checkIfTaken(index)) gameboard.placeMark(index, player);
     displayController.renderBoard();
 
     /*  This is where we would check for a winner and handle that logic,
         such as a win message. */
-    if (checkIfWinner(activePlayer)) {
+
+    if (checkIfWinner(activePlayer) === 'tie') {
+      displayController.printMessage(`It's a tie!!!`);
+      displayController.renderPlayAgainButton();
+      disableGame();
+      return;
+    } else if (checkIfWinner(activePlayer)) {
       printWinner(activePlayer);
-      gameboard.resetBoard();
-      // return;
+      displayController.renderPlayAgainButton();
+      disableGame();
+      return;
     }
 
     // If no winner, switch player turn
@@ -108,22 +116,62 @@ const gameController = (() => {
     );
   };
 
+  const addPlayBtnEventListener = () =>
+    document
+      .querySelector('#playButton')
+      .addEventListener('click', e => handleClick(e));
+
   const handleClick = e => {
     const index = e.target.dataset.index;
-    if (index === undefined) return;
+    if (e.target.classList.contains('button')) resetGame();
+    if (index === undefined || checkIfTaken(index)) return;
     e.target.classList.add('marked');
     playRound(getActivePlayer(), index);
   };
 
-  return { playRound, getActivePlayer, handleClick };
+  const disableGame = () => {
+    document
+      .querySelectorAll('.cell')
+      .forEach(cell => cell.classList.add('disabled'));
+  };
+
+  const resetGame = () => {
+    activePlayer = playerOne;
+    displayController.printMessage(`X's go first`);
+    displayController.removePlayAgainButton();
+    gameboard.resetBoard();
+    displayController.renderBoard();
+  };
+
+  return {
+    playRound,
+    getActivePlayer,
+    handleClick,
+    addPlayBtnEventListener,
+    disableGame,
+    resetGame,
+  };
 })();
 
 const displayController = (() => {
   // Methods to render the game state on the UI
   const board = document.querySelector('#gameboard');
+  const messageEl = document.querySelector('#subheading');
 
   const printMessage = message => {
-    document.querySelector('#subheading').textContent = message;
+    messageEl.textContent = message;
+  };
+
+  const renderPlayAgainButton = () => {
+    const playAgainBtnHTML = `
+    <button class="button" id="playButton">One more?</button>
+    `;
+    messageEl.insertAdjacentHTML('afterend', playAgainBtnHTML);
+    gameController.addPlayBtnEventListener();
+  };
+
+  const removePlayAgainButton = () => {
+    document.querySelector('#playButton').remove();
   };
 
   const renderBoard = () =>
@@ -138,7 +186,12 @@ const displayController = (() => {
     .join('')}
   `);
 
-  return { renderBoard, printMessage };
+  return {
+    renderBoard,
+    printMessage,
+    renderPlayAgainButton,
+    removePlayAgainButton,
+  };
 })();
 
 displayController.renderBoard();
